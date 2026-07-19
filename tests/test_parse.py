@@ -7,6 +7,7 @@ import re
 from io import BytesIO
 from typing import Dict, List, Union
 
+import pytest
 from docling_core.types.doc.page import (
     BitmapResource,
     PdfHyperlink,
@@ -1260,3 +1261,17 @@ def test_content_escalation_redecodes_page():
         "escalation must re-decode the page and surface word cells"
     )
     pdf_doc.unload()
+
+
+def test_load_rejects_empty_bytesio():
+    """Empty PDF bytes must fail load instead of leaving a ghost document."""
+    parser = DoclingPdfParser(loglevel="fatal")
+    with pytest.raises(RuntimeError, match="Failed to load document"):
+        parser.load(path_or_stream=BytesIO(b""), lazy=True)
+
+
+def test_load_rejects_garbage_pdf_bytes():
+    """Unparseable PDF-looking bytes must fail load instead of succeeding."""
+    parser = DoclingPdfParser(loglevel="fatal")
+    with pytest.raises(RuntimeError, match="Failed to load document"):
+        parser.load(path_or_stream=BytesIO(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\ngarbage"), lazy=True)

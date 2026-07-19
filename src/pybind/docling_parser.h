@@ -170,9 +170,15 @@ namespace docling
         remove_page_decoders(key);
 
         doc_decoders[key] = std::make_shared<doc_decoder_type>();
-        doc_decoders.at(key)->process_document_from_file(filename,
-                                                         password,
-                                                         keep_qpdf_warnings);
+        bool ok = doc_decoders.at(key)->process_document_from_file(filename,
+                                                                   password,
+                                                                   keep_qpdf_warnings);
+        if(not ok or doc_decoders.at(key)->get_number_of_pages() <= 0)
+          {
+            doc_decoders.erase(key);
+            LOG_S(ERROR) << "could not decode file object for key=" << key;
+            return false;
+          }
 
         return true;
       }
@@ -210,16 +216,23 @@ namespace docling
 
         doc_decoders[key] = std::make_shared<doc_decoder_type>();
         std::string description = "parsing of " + key + " from bytesio";
-        doc_decoders.at(key)->process_document_from_bytesio(data_buffer,
-                                                            password,
-                                                            description,
-                                                            keep_qpdf_warnings);
+        bool ok = doc_decoders.at(key)->process_document_from_bytesio(data_buffer,
+                                                                      password,
+                                                                      description,
+                                                                      keep_qpdf_warnings);
+        if(not ok or doc_decoders.at(key)->get_number_of_pages() <= 0)
+          {
+            doc_decoders.erase(key);
+            LOG_S(ERROR) << "could not decode bytesio object for key=" << key;
+            return false;
+          }
 
         return true;
       }
     catch(const std::exception& exc)
       {
-        LOG_S(ERROR) << "could not docode bytesio object for key="<<key;
+        doc_decoders.erase(key);
+        LOG_S(ERROR) << "could not decode bytesio object for key="<<key;
         return false;
       }
 

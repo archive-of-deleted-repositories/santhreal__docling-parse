@@ -217,9 +217,15 @@ namespace docling
         try
           {
             key2doc[key] = std::make_shared<doc_decoder_type>();
-            key2doc.at(key)->process_document_from_file(filename,
-                                                        password,
-                                                        config.keep_qpdf_warnings);
+            bool ok = key2doc.at(key)->process_document_from_file(filename,
+                                                                  password,
+                                                                  config.keep_qpdf_warnings);
+            if(not ok or key2doc.at(key)->get_number_of_pages() <= 0)
+              {
+                key2doc.erase(key);
+                LOG_S(ERROR) << "could not decode file object for key=" << key;
+                return false;
+              }
           }
         catch(const std::exception& exc)
           {
@@ -277,10 +283,16 @@ namespace docling
       {
         key2doc[key] = std::make_shared<doc_decoder_type>();
         std::string description = "parsing of " + key + " from bytesio";
-        key2doc.at(key)->process_document_from_bytesio(data_buffer,
-                                                       password,
-                                                       description,
-                                                       config.keep_qpdf_warnings);
+        bool ok = key2doc.at(key)->process_document_from_bytesio(data_buffer,
+                                                                 password,
+                                                                 description,
+                                                                 config.keep_qpdf_warnings);
+        if(not ok or key2doc.at(key)->get_number_of_pages() <= 0)
+          {
+            key2doc.erase(key);
+            LOG_S(ERROR) << "could not decode bytesio object for key=" << key;
+            return false;
+          }
       }
     catch(const std::exception& exc)
       {
@@ -360,6 +372,13 @@ namespace docling
       int num_pages,
       std::optional<std::vector<int>> page_numbers) const
   {
+    if(num_pages <= 0)
+      {
+        throw std::runtime_error("Document key " + key
+                                 + " has no pages (page count="
+                                 + std::to_string(num_pages) + ")");
+      }
+
     std::vector<int> scheduled_pages;
 
     if(not page_numbers.has_value())

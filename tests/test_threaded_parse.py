@@ -3,6 +3,7 @@
 
 import glob
 import os
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -615,3 +616,23 @@ def test_threaded_result_get_connected_shape_bounding_boxes(tmp_path: Path):
     box_tuples = {_bbox_tuple(box) for box in boxes}
     assert (120.0, 120.0, 170.0, 170.0) in box_tuples
     assert (10.0, 150.0, 20.0, 160.0) in box_tuples
+
+
+def test_threaded_load_rejects_empty_bytesio():
+    """Empty PDF bytes must fail threaded load without crashing on reserve(-1)."""
+    parser = DoclingThreadedPdfParser(
+        parser_config=ThreadedPdfParserConfig(loglevel="fatal", threads=2),
+        decode_config=_make_decode_config(),
+    )
+    with pytest.raises(RuntimeError, match="Failed to load document"):
+        parser.load(BytesIO(b""))
+
+
+def test_threaded_load_rejects_garbage_pdf_bytes():
+    """Unparseable PDF-looking bytes must fail threaded load cleanly."""
+    parser = DoclingThreadedPdfParser(
+        parser_config=ThreadedPdfParserConfig(loglevel="fatal", threads=2),
+        decode_config=_make_decode_config(),
+    )
+    with pytest.raises(RuntimeError, match="Failed to load document"):
+        parser.load(BytesIO(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\ngarbage"))
